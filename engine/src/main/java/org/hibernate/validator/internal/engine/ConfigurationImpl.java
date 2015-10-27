@@ -7,6 +7,7 @@
 package org.hibernate.validator.internal.engine;
 
 import java.io.BufferedInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.AccessController;
@@ -203,7 +204,10 @@ public class ConfigurationImpl implements HibernateValidatorConfiguration, Confi
 	public final HibernateValidatorConfiguration addMapping(InputStream stream) {
 		Contracts.assertNotNull( stream, MESSAGES.inputStreamCannotBeNull() );
 
-		validationBootstrapParameters.addMapping( stream.markSupported() ? stream : new BufferedInputStream( stream ) );
+		if(!stream.markSupported())
+			stream = new BufferedInputStream( stream );
+
+		validationBootstrapParameters.addMapping( new CloseIgnoringInputStream(stream) );
 		return this;
 	}
 
@@ -535,5 +539,16 @@ public class ConfigurationImpl implements HibernateValidatorConfiguration, Confi
 	 */
 	private static <T> T run(PrivilegedAction<T> action) {
 		return System.getSecurityManager() != null ? AccessController.doPrivileged( action ) : action.run();
+	}
+
+	private static class CloseIgnoringInputStream extends FilterInputStream {
+		public CloseIgnoringInputStream(InputStream in) {
+			super( in );
+		}
+
+		@Override
+		public void close() {
+			// do nothing
+		}
 	}
 }
